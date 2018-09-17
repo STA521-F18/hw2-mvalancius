@@ -31,6 +31,9 @@ help(UN3)
 library(car)
 library(dplyr)
 library(knitr)
+library(ggplot2)
+library(GGally)
+library(car)
 ```
 
 
@@ -60,22 +63,60 @@ highlighting the relationships among the predictors. Comment
 on your findings regarding trying to predict `ModernC` from the other variables.  Are there potential outliers, nonlinear relationships or transformations that appear to be needed based on your graphical EDA?
 
 ```{r}
-
+ggpairs(UN3, progress = FALSE)
 ```
+
+As seen in the message, each plot contained missing values that were removed by the ggpairs plotting function.
+
+From the above plots, we notice several things.
+
+(1) The marginal relationship between ModernC and Change is approximately linear and negatively correlated. Without controlling for other variables, areas with lower rates of population growth have higher levels of modern contraception use. Knowing that areas of high growth also general tend to have lower wealth/education could lead to speculation that the relationship between change and PPgdp is important in predicting ModernC.
+
+(2) Most of the populations are under 18,913,500. However, two populations are extremely large, with the largest being 1,304,196,000 (China). Consequentially, a logarithmic transformation of population could bring these orders of magnitude into scale.
+
+(3) Another candidate for a logarithmic transformation is PPgdp (GDP per capita), as several of the richer countries have much larger values than others.
+
+After transforming the variables, we get the following pair plots.
+
+```{r}
+UN3 %>% mutate(log_PPgdp = log(PPgdp), log_Pop = log(Pop)) %>% select(-Pop, -PPgdp) %>% ggpairs(, progress = FALSE)
+```
+
+With these transformations, most of the relationships appear more linear. From a marginal perspective, all of the variables except for log(PPgdp) have a relationship with MordernC. It is worth noting that, on its own, Frate does not have much of a relationship with any of the variables individually.
+
+While not all the points fit very closely along a straight line, the plots do not raise any immediate concerns about outliers. Transforming population logarithmically helped account for the huge populations of China and India.
+
+
 
 ## Model Fitting
 
 4.  Use the `lm()` function to perform a multiple linear regression with `ModernC` as the response and all other variables as the predictors, using the formula `ModernC ~ .`, where the `.` includes all remaining variables in the dataframe.  Create  diagnostic residual plot from the linear model object and comment on results regarding assumptions.  How many observations are used in your model fitting?
 
 ```{r}
-
+UN3_mod_simple <- lm(ModernC ~., data = UN3)
+summary(UN3_mod_simple)
 ```
+Because the lm function in R removes observations with missing data as a default, there were 85 observations that were deleted. Considering there were only 210 observations to start with, we are only left with 125 (60%) of the observations. 
+```{r}
+plot(UN3_mod_simple)
+```
+From the Residuals vs Fitted plot, we see that the variance of the residuals is roughtly constant and the dispersion around 0 is not extreme for any one point in relation to the others. Poland and Azerbaikan had fitted values of ModernC the furthest above their actual values, while the Cook Islands had a fitted value the further below its actual value. The red fitted line to the residuals shows that, while there is some curvature to the residuals, there is no clear, discernable pattern. 
+
+When we examine the Normal Q-Q plot, we see that the residuals definitely do not follow a theoretical normal distribution. The residuals on the negative end follow the theoretical quantiles, but the positive residuals are not as dispersed on the upper end as would eb expected from normally distributed errors. Thus, our assumption of normally distributed errors appears to be incorrect. 
+
+In the Residuals vs Leverage plot, we see that China and India has the largest leveral values, but neitiher are very influential based on their Cook's Distance. There is also no discernable pattern between leverage and the size of the standardized residual.
+
 
 5. Examine added variable plots `car::avPlot` or `car::avPlots`  for your model above. Are there any plots that suggest that transformations are needed for any of the terms in the model? Describe. Is it likely that any of the localities are influential for any of the terms?  Which localities?  Which terms?  
 
 ```{r}
-
+avPlots(UN3_mod_simple)
 ```
+
+Looking at the added variabke plots, we can see the amount of variation unexplained by the model compared to the variation in the predictor that is not explained by the other variables. 
+
+Based on the added variable plots, it appears that Purban (slope of around 0) has very little influence on ModernC after the other variables have been accounted for. Meanwhile, fertility has the strongest (albeit negative) relationship with ModernC after accounting for the other variables. Most of the relationships appear linear with the exception of population, which definitely appears to need a logarithmic transformation to properly scale the countries with massive populations. 
+
 
 6.  Using the Box-Tidwell  `car::boxTidwell` or graphical methods find appropriate transformations of the predictor variables to be used as predictors in the linear model.  If any predictors are negative, you may need to transform so that they are non-negative.  Describe your method and  the resulting transformations.
 
