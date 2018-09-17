@@ -29,19 +29,29 @@ library(alr3)
 data(UN3, package="alr3")
 help(UN3) 
 library(car)
+library(dplyr)
+library(knitr)
 ```
 
 
 1. Create a summary of the data.  How many variables have missing data?  Which are quantitative and which are qualtitative?
 
 ```{r}
+summary(UN3)
+
+sapply(UN3, function(x) sum(is.na(x)))
 
 ```
+ModernC, Change, PPgdp, Frate, Pop, Fertility, and Purban are all quantitative variables. Thus, all the data is quatitative.
+
+Unfortuntately, all of the variables with the exception of Purban contain missing values (NA).
 
 2. What is the mean and standard deviation of each quantitative predictor?  Provide in a nicely formatted table.
 
 ```{r}
-
+UN3_means <- summarise_all(UN3, mean, na.rm = TRUE)
+UN3_sds <- summarise_all(UN3, sd, na.rm = TRUE)
+rbind(UN3_means, UN3_sds) %>% t() %>%kable(, col.names = c("Mean", "Standard Deviation"), align = 'l')
 ```
 
 
