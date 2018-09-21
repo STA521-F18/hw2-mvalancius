@@ -62,27 +62,32 @@ rbind(UN3_means, UN3_sds) %>% t() %>%kable(, col.names = c("Mean", "Standard Dev
 highlighting the relationships among the predictors. Comment
 on your findings regarding trying to predict `ModernC` from the other variables.  Are there potential outliers, nonlinear relationships or transformations that appear to be needed based on your graphical EDA?
 
-```{r}
+```{r, warning = FALSE}
 ggpairs(UN3, progress = FALSE)
 ```
 
-As seen in the message, each plot contained missing values that were removed by the ggpairs plotting function.
+In order to plot the pairwise comparisons of the variables, the ggpairs function automatically removed data that had missing values for either of the two variables in each plot.
+
 
 From the above plots, we notice several things.
 
-(1) The marginal relationship between ModernC and Change is approximately linear and negatively correlated. Without controlling for other variables, areas with lower rates of population growth have higher levels of modern contraception use. Knowing that areas of high growth also general tend to have lower wealth/education could lead to speculation that the relationship between change and PPgdp is important in predicting ModernC.
+The strongest relationship in the data, with a correlation of 0.814, is between fertility and change. Higher rates of population growth are associated with higher fertility rates. This is expected since birth rate (fertility) is a major driver of population growth.
 
-(2) Most of the populations are under 18,913,500. However, two populations are extremely large, with the largest being 1,304,196,000 (China). Consequentially, a logarithmic transformation of population could bring these orders of magnitude into scale.
+Our response variable of interest, ModernC, has approximately linear marginal relationships with Change and Purban. THe plot between fertility and ModernC shows some curvature. The marginal relationship between ModernC and Change is approximately linear and negatively correlated. Without controlling for other variables, areas with lower rates of population growth have higher levels of modern contraception use. Knowing that areas of high growth also general tend to have lower wealth/education could lead to speculation that the relationship between change and PPgdp is important in predicting ModernC.
 
-(3) Another candidate for a logarithmic transformation is PPgdp (GDP per capita), as several of the richer countries have much larger values than others.
+The relationship of ModernC with PPgdp appears to be better modeled with a curve, suggesting a logarithmic or power transformation might better approximate a linear relationship, while the relationship with population is unclear do to some potential outliers. From the density plot of population, we see that it exhibits a heavy positive skew, with several countries (especially China and India) having much larger populations that the median. Consequentially, a logarithmic transformation of population could bring these orders of magnitude into scale.
 
-After transforming the variables, we get the following pair plots.
+In addition to checking for a linear relationship between the response and the individual predictors, in a multivariate setting, a good general procedure is to transform the predicters so that they exhibit a close to linear relationship. Many of the predictors plotted against each other have relationships that do not appear linear, and thus utilizing transformations is appropriate. We will further inverstigate the predictor relationships after applying the transformations.
 
-```{r}
-UN3 %>% mutate(log_PPgdp = log(PPgdp), log_Pop = log(Pop)) %>% select(-Pop, -PPgdp) %>% ggpairs(, progress = FALSE)
+While the appropriate transformations will be discussed further in a later question, I wanted to plot the pairs after transforming PPgdp, Fertility, and Population logarithmically. Justification for these transformations is graphical. Population has a distribution that spans many orders of magnitude, while PPgdp and Fertility span several orders of magnitude and have non linear relationships with ModernC based on the plotted samples.
+
+```{r, warning=FALSE}
+UN3 %>% mutate(log_PPgdp = log(PPgdp), log_Pop = log(Pop), log_Fertility = log(Fertility)) %>% select(-Pop, -PPgdp, -Fertility) %>% ggpairs(, progress = FALSE)
 ```
 
-With these transformations, most of the relationships appear more linear. From a marginal perspective, all of the variables except for log(PPgdp) have a relationship with MordernC. It is worth noting that, on its own, Frate does not have much of a relationship with any of the variables individually.
+With these transformations, most of the relationships appear more linear. From a marginal perspective, all of the variables except for log(Pop) have a relationship with MordernC. It is worth noting that, on its own, Frate does not have much of a relationship with any of the other predictors individually.
+
+Additionally, many of the plots of predictors now demonstrate a closer to linear relationship, suggesting that further transformations may be uneccesary.
 
 While not all the points fit very closely along a straight line, the plots do not raise any immediate concerns about outliers. Transforming population logarithmically helped account for the huge populations of China and India.
 
@@ -100,9 +105,7 @@ Because the lm function in R removes observations with missing data as a default
 ```{r}
 plot(UN3_mod_simple)
 ```
-From the Residuals vs Fitted plot, we see that the variance of the residuals is roughtly constant and the dispersion around 0 is not extreme for any one point in relation to the others. Poland and Azerbaikan had fitted values of ModernC the furthest above their actual values, while the Cook Islands had a fitted value the further below its actual value. The red fitted line to the residuals shows that, while there is some curvature to the residuals, there is no clear, discernable pattern. 
-
-When we examine the Normal Q-Q plot, we see that the residuals definitely do not follow a theoretical normal distribution. The residuals on the negative end follow the theoretical quantiles, but the positive residuals are not as dispersed on the upper end as would eb expected from normally distributed errors. Thus, our assumption of normally distributed errors appears to be incorrect. 
+In a multiple linear regression setting, interpretations of residual plots are dependent upon there being a somewhat linear relationship among the predictors. Since this model was fit without any transformations, that assumption is questionable, at best. So even though the residuals display a roughly constant variance with no clear patterns, interpreting the residuals vs pitted plots is inconclusive. Thus, although the Q-Q plot strongly suggests that the residuals do not follow a theoretical normal distribution, we need to transform the variables and re-run the model to make stronger conclusions about the its fit.
 
 In the Residuals vs Leverage plot, we see that China and India has the largest leveral values, but neitiher are very influential based on their Cook's Distance. There is also no discernable pattern between leverage and the size of the standardized residual.
 
@@ -113,40 +116,157 @@ In the Residuals vs Leverage plot, we see that China and India has the largest l
 avPlots(UN3_mod_simple)
 ```
 
-Looking at the added variabke plots, we can see the amount of variation unexplained by the model compared to the variation in the predictor that is not explained by the other variables. 
+Looking at the added variabke plots, we can see the amount of variation unexplained by the model compared to the variation in the added variable that is not explained by the other variables. 
 
-Based on the added variable plots, it appears that Purban (slope of around 0) has very little influence on ModernC after the other variables have been accounted for. Meanwhile, fertility has the strongest (albeit negative) relationship with ModernC after accounting for the other variables. Most of the relationships appear linear with the exception of population, which definitely appears to need a logarithmic transformation to properly scale the countries with massive populations. 
+Based on the added variable plots, it appears that Purban (slope of around 0) has very little influence on ModernC after the other variables have been accounted for. Meanwhile, fertility has the strongest (albeit negative) relationship with ModernC after accounting for the other variables. Both fertility and PPgdp seem to have some curvature in the relationships, and thus transformations should be investigated. 
+
+The most interesting situation involves population, which has a cluster of localities with populations significantly smaller than the largest several countries. Because of the distribution of populations, log transforming this variable might be an appropriate solution. However, it also could be possible that there is no real relationship between population and ModernC after controlling for the other variables and that a few of the countries just represent outliers.  
+
+Both India and China have the potential to influence the regression line based on their population level. We can test how much their predicted points change based on whether CHina and India were included in the training data or not. 
+
+```{r}
+UN3_mod_no_chi_ind <- lm(ModernC ~ ., data = UN3[UN3$Pop < 1000000,])
+china_india <- UN3[UN3$Pop > 1000000,] %>% filter(is.na(Pop) == "FALSE")
+p_wo_chi_ind <- as.vector(predict(UN3_mod_no_chi_ind, newdata = china_india))
+p_w_chi_ind <- as.vector(predict(UN3_mod_simple, newdata = china_india))
+data.frame("With_China_India" = p_w_chi_ind, "Without_China_inda" = p_wo_chi_ind) %>% t() %>% kable(, col.names = c("China", "India"))
+```
+
+As seen, China and India both have significantly smaller predicted values when the model was trained with their observations. This is evidence that the inclusion of these two observations, which have population values far larger than any other population values, greatly influence the fit of the model. 
+
+This is also seen clearly in the added variable plots. The left plot below is the added variable plot with China and India included, while the plot to the right excludes them.
+
+```{r}
+par(mfrow = c(1,2))
+avPlots(UN3_mod_simple, terms = ~Pop, main = "Added Variable Plot with China, India")
+avPlots(UN3_mod_no_chi_ind, terms = ~Pop, main = "Added Variable Plot without China, India")
+par(mfrow = c(1,1))
+```
+
+The added variable plot on the right seems to suggest that there is some relationship between population and ModernC after accounting for the other variables, but that it needs a transformation to make the relationship linear. 
+
+```{r}
+plot(x = log(UN3$Pop), y = UN3$ModernC)
+```
+As seen in the above plot, although there is not a strong relationship between just ModernC and log(Population), the transformation removes the non linear trend previously exhibited.
 
 
 6.  Using the Box-Tidwell  `car::boxTidwell` or graphical methods find appropriate transformations of the predictor variables to be used as predictors in the linear model.  If any predictors are negative, you may need to transform so that they are non-negative.  Describe your method and  the resulting transformations.
 
 
-```{r}
+```{r, warning = FALSE}
+ggpairs(UN3, progress = FALSE)
+```
+
+Based on their nonlinear relationships with ModernC, the three variables that appear to be in need of transformations are population, fertility, and PPgdp.
+
+ (1) Population
+ 
+ 
+```{r, warning = FALSE}
+par(mfrow = c(1,2))
+ggplot(UN3, aes(x = Pop, y = ModernC)) + geom_point() + geom_smooth(method = "lm", se = FALSE) + geom_smooth(method = "loess", se = FALSE)
+
+ggplot(UN3, aes(x = log(Pop), y = ModernC)) + geom_point() + geom_smooth(method = "lm", se = FALSE) + geom_smooth(method = "loess", se = FALSE)
+par(mfrow = c(1,1))
+```
+Comparing the plots of ModernC against population and then the log of population, we see that the transformation better models the majority of the data, although the relationship is not very strong. The flexible loess regression line offers a comparison to the linear regression line and demonstrates the stark contrast between the fit of the two plots. 
+
+ (2) Fertility
+ 
+```{r, warning = FALSE}
+par(mfrow = c(1,3))
+ggplot(UN3, aes(x = Fertility, y = ModernC)) + geom_point() + geom_smooth(method = "lm", se = FALSE) + geom_smooth(method = "loess", se = FALSE)
+
+ggplot(UN3, aes(x = log(Fertility), y = ModernC)) + geom_point() + geom_smooth(method = "lm", se = FALSE) + geom_smooth(method = "loess", se = FALSE)
+
+ggplot(UN3, aes(x = (Fertility)^(-1), y = ModernC)) + geom_point() + geom_smooth(method = "lm", se = FALSE) + geom_smooth(method = "loess", se = FALSE)
+par(mfrow = c(1,1))
+```
+ 
+WHile the log transformation improves the linear relationship, there is still some curvature for lower values of fertility. Checking the Box-Tidwell results could recommend a more suitable transformation.
+
+(3) PPgdp
+```{r, warning = FALSE}
+par(mfrow = c(1,2))
+ggplot(UN3, aes(x = PPgdp, y = ModernC)) + geom_point() + geom_smooth(method = "lm", se = FALSE) + geom_smooth(method = "loess", se = FALSE)
+
+ggplot(UN3, aes(x = log(PPgdp), y = ModernC)) + geom_point() + geom_smooth(method = "lm", se = FALSE) + geom_smooth(method = "loess", se = FALSE)
+
+par(mfrow = c(1,1))
 
 ```
+As the above plots demonstrate, before the transformation, most of the PPgdp values are clustered below 200, but there are several that are orders of magnitude greater than the smallest. Thus, it is a natural candidate for a logarithmic transformation. The second plot demonstrates that the transformation produces a much closer to linear relationship,
+
+
+While the three logarithmic transformations appear to resolve the lack of linearity in the predictors from a graphical analysis, it is useful to compare these with the BoxTidwell transformations.
+
+
+```{r}
+UN3_shiftChange <- mutate(UN3, Change = Change + 100) %>% na.omit()
+boxTidwell(ModernC ~ PPgdp + Fertility + Pop, ~ Change + Purban + Frate, data = UN3_shiftChange)
+```
+None of the maximum likelihood estimates for the powers are statistically significant at the 0.05 level. Without a strong statistical or scientific justification for the transformations and due to the improvement in the linear relationships with the log transformation, the latter transformations are preferred, 
+
+
 
 7. Given the selected transformations of the predictors, select a transformation of the response using `MASS::boxcox` or `car::boxCox` and justify.
 
 
 ```{r}
-
+UN3_mod_tran <- lm(ModernC ~ Purban + Change + Frate + log(Pop) + log(Fertility) + log(PPgdp), data = UN3_naomit)
+boxCox(UN3_mod_tran)
 ```
 
+Based on the maximum likelihood estimate for lambda, the power to which the response variable would be raised, we see that the 95% confidence interval contains (and is almost centered at) 1, which would involve no transformation. Thus, we do not transform ModernC.
+
+
 8.  Fit the regression using the transformed variables.  Provide residual plots and added variables plots and comment.  If you feel that you need additional transformations of either the response or predictors, repeat any steps until you feel satisfied.
+
+```{r}
+plot(UN3_mod_tran)
+```
+Since the variables with the transformations have approximately linear relationships with eachother, we can now analyze the residual plots. In the Fitted Values vs. Standardized Residuals plot, we see no noticable trend in the residuals and the variance appears constant. However, the Q-Q plot does give some concern that the residuals are not quite normally distributed, with the thin tails indivating that the residuals are more tightly centered around the 0.
 
 9. Start by finding the best transformation of the response and then find transformations of the predictors.  Do you end up with a different model than in 8?
 
 
 ```{r}
-
+boxCox(UN3_mod_simple)
 ```
+Using a model that includes all the predictors with no transformations, we see that the Box-Cox method recommends transforming the response variable to the power of around 0.8. the 95% confidence interval for the estimate contains 1 (no transformation). Because of this and the difficulties in justifying a power of 0.8 theoretically, the optimal procedure is to leave the predictor unchanged. Thus, both when we transformed the variables and when we didn't, the Box_cox method provided evidence that a a power transformation of the response variable, ModernC, would not be optimal.
 
 10.  Are there any outliers or influential points in the data?  Explain.  If so, refit the model after removing any outliers and comment on residual plots.
 
 
-```{r}
-
+```{r, warning=FALSE}
+ggplot(UN3, aes(x = Pop, y = ModernC)) + geom_point()
 ```
+In the plot of Population against ModernC, we see that there are two values of population over 150 times larger than the median. These countries are CHina and India. In general, the population data exhibits a positive skew even when ignoring China and India, as the first plot below shows. The histogram shows the population distribution with all localities included/
+
+```{r}
+ggplot(UN3[UN3$Pop < 1000000,], aes(x = Pop, y = ModernC)) + geom_point()
+hist(UN3[UN3$Pop < 1000000,]$Pop, breaks = 100, xlab = "Population (in thousands)", main = "Histogram of Population")
+```
+As mentioned in answer #5, with no transformation applied to Population, the inclusion of China and India influence the model.
+
+```{r}
+UN3_outlier <- UN3[UN3$Pop < 1000000,]
+## Model with no transformations and with outliers
+summary(UN3_mod_simple)
+## Model with no transformations and without outliers
+summary(UN3_mod_no_chi_ind)
+## Model with transformations and with outliers.
+summary(UN3_mod_tran)
+##Model with transformations and no outliers.
+UN3_mod_no_chi_ind_tran <- lm(ModernC ~ Purban + Change + Frate + log(Pop) + log(Fertility) + log(PPgdp), data = UN3[UN3$Pop < 1000000,])
+summary(UN3_mod_no_chi_ind_tran)
+
+plot(UN3_mod_no_chi_ind)
+plot(UN3_mod_no_chi_ind_tran)
+```
+Removal of the outliers does not result in any noticable changes in the residual plots. The Q-Q plot still shows light tails and there is no clear pattern to the residuals. The constant variance assumption still appears suitable. Again, it should be noted that these comments should only apply to the residual plots for the model with the log transformations since the model without them had non linear relationships among the predictors.
+
 
 ## Summary of Results
 
@@ -154,7 +274,7 @@ Based on the added variable plots, it appears that Purban (slope of around 0) ha
 
 
 ```{r}
-
+summary(UN3_mod_tran)
 ```
 
 
@@ -173,3 +293,26 @@ Based on the added variable plots, it appears that Purban (slope of around 0) ha
 
 
 14. For multiple regression with more than 2 predictors, say a full model given by `Y ~ X1 + X2 + ... Xp`   we create the added variable plot for variable `j` by regressing `Y` on all of the `X`'s except `Xj` to form `e_Y` and then regressing `Xj` on all of the other X's to form `e_X`.  Confirm that the slope in a manually constructed added variable plot for one of the predictors  in Ex. 10 is the same as the estimate from your model. 
+
+The following will demonstrate that the slope of Change in the full model is the same as the slope of the added variable plot.
+
+```{r}
+summary(UN3_mod_tran)
+```
+From the summary, we see that the slope of Chane is 2.31.
+
+In the added variable plot, we have the residuals from ModernC regressed on all the variables except Change on the Y axis. On the X axis, we have the residuals from Change regressed on the other predictors. Below, we regress these two residuals.
+
+```{r}
+## The residuals from ModernC regressed on all the variables except Change
+resid_y <- lm(formula = ModernC ~ Purban + Frate + log(Pop) + log(Fertility) + 
+    log(PPgdp), data = UN3_naomit)
+
+## The residuals from Change regressed on the other predictors
+resid_x <- lm(formula = Change ~ Purban + Frate + log(Pop) + log(Fertility) + 
+    log(PPgdp), data = UN3_naomit)
+
+summary(lm(resid_y$residuals ~ resid_x$residuals))
+
+```
+Thus, we have confirmed that the slope in the added variable plot is the same as the slope in the full model.
